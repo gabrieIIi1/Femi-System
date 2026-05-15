@@ -1,0 +1,35 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: #fff8fa;
+  color: #2e1019;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar fina e elegante */
+::-webkit-scrollbar         { width: 4px; height: 4px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background: #e8a8b8; border-radius: 4px; }
+
+/* Focus global nos inputs */
+input, select, textarea {
+  outline: none;
+  font-family: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #b5416a !important;
+  box-shadow: 0 0 0 3px rgba(181, 65, 106, 0.1);
+}
+
+/* Remover seta do select nativo em alguns browsers */
+select {
+  appearance: auto;
+}
