@@ -5,9 +5,10 @@ Sistema de gestão para profissionais da beleza — agenda, clientes, financeiro
 ## Tecnologias
 
 - **React 18** + **Vite**
-- Estado persistido no **localStorage** (sem backend)
-- Ícones SVG inline (sem dependência externa)
-- WhatsApp via **Evolution API** (opcional)
+- **React Router DOM v6** para navegação por rotas
+- Autenticação simulada com `AuthContext`
+- Estado do app persistido em **localStorage** via backend mock em `src/services/backend.js`
+- Área administrativa com páginas de agenda, clientes, serviços, financeiro, fidelidade, WhatsApp e perfil
 
 ## Estrutura do projeto
 
@@ -21,13 +22,14 @@ src/
 │   ├── theme.js       # Cores, estilos CSS-in-JS, STATUS
 │   └── data.js        # Dados iniciais, opções de formulários
 │
-├── contexts/
-│   └── AppContext.jsx  # Estado global (clientes, agendamentos, etc.)
+├── contexts/          # Providers de autenticação e app
+│   ├── AuthContext.jsx # Login, registro, sessão e usuário
+│   └── AppContext.jsx  # Estado global do app e persistência por usuário
 │
 ├── hooks/
-│   └── useLocalStorage.js  # Hook de persistência
+│   └── useLocalStorage.js  # Hook auxiliar de persistência local
 │
-├── pages/             # Uma página por arquivo
+├── pages/             # Páginas da aplicação
 │   ├── Dashboard.jsx
 │   ├── Agenda.jsx
 │   ├── Agendamento.jsx
@@ -37,15 +39,17 @@ src/
 │   ├── Financeiro.jsx
 │   ├── Fidelidade.jsx
 │   ├── WhatsApp.jsx
-│   └── Perfil.jsx
+│   ├── Perfil.jsx
+│   └── Login.jsx
 │
-├── services/
-│   └── whatsapp.js    # Integração Evolution API
+├── services/          # Simulação de backend local
+│   ├── backend.js     # Armazenamento e sessão via localStorage
+│   └── whatsapp.js    # Integração com Evolution API (opcional)
 │
-├── utils/
-│   └── helpers.js     # Funções puras (formatação, calendário, etc.)
+├── utils/             # Utilitários e formatos
+│   └── helpers.js     # Funções de formatação e cálculo
 │
-├── App.jsx            # Roteador principal
+├── App.jsx            # Roteamento e proteção de rotas
 ├── main.jsx           # Entry point
 └── index.css          # Estilos globais
 ```
@@ -53,38 +57,46 @@ src/
 ## Como rodar localmente
 
 ```bash
-# 1. Instalar dependências
 npm install
-
-# 2. Copiar variáveis de ambiente (opcional — só necessário para WhatsApp)
-cp .env.example .env
-
-# 3. Rodar em desenvolvimento
 npm run dev
-
-# 4. Build para produção
-npm run build
 ```
 
-O app abre em `http://localhost:5173`
+Abra `http://localhost:5173` no navegador.
 
-## WhatsApp (opcional)
+## Fluxo principal
 
-Siga o guia em `docs/guia-whatsapp.md` para configurar a Evolution API no Railway e habilitar envio real de mensagens.
+- `Login`/`Registro` para iniciar sessão
+- `Sidebar` para navegar entre páginas
+- `AppContext` cuida do estado de:
+  - clientes
+  - agendamentos
+  - serviços
+  - gastos
+  - automações
+  - pontos de fidelidade
+  - resgates
+- Estado persistido por usuário em `localStorage`
 
-Após configurar, edite o `.env`:
+## APIs e integrações
+
+- `src/services/backend.js` responde como um backend mock usando `localStorage`
+- `src/services/whatsapp.js` tem lógica para conectar à Evolution API (requere `.env`)
+
+## Variáveis de ambiente (opcional)
+
+Se usar o WhatsApp, adicione as variáveis no `.env`:
+
+```env
+VITE_EVOLUTION_URL=https://seu-projeto.up.railway.app
+VITE_EVOLUTION_KEY=sua-chave-secreta
+VITE_EVOLUTION_INSTANCE=femi-system
 ```
-VITE_EVOLUTION_URL      = https://seu-projeto.up.railway.app
-VITE_EVOLUTION_KEY      = sua-chave-secreta
-VITE_EVOLUTION_INSTANCE = femi-system
-```
 
-## Deploy
+## Observações
 
-O projeto pode ser hospedado em qualquer serviço de hosting estático:
-- **Vercel** (recomendado) — `vercel deploy`
-- **Netlify** — arrasta a pasta `dist/`
-- **Railway** — via Dockerfile ou buildpack Node
+- A aplicação é uma SPA com navegação por rotas, não usa navegação por estado interno de página
+- Os dados persistem no navegador e são isolados por usuário autenticado
+- O login e backend são simulados para ambiente de desenvolvimento
 
 ---
 
