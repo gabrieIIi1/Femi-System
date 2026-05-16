@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState, useEffect } from "react"
 import { useAuth } from "./AuthContext"
+import { getUserData, saveUserData } from "../services/backend"
 import {
   CLIENTES_INIT, SERVICOS_INIT, AGENDAMENTOS_INIT,
   GASTOS_INIT, AUTOMACOES_INIT,
@@ -7,56 +8,86 @@ import {
 
 const AppContext = createContext(null)
 
-function load(key, fallback) {
-  try { const r = localStorage.getItem(key); return r !== null ? JSON.parse(r) : fallback }
-  catch { return fallback }
-}
-function save(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
-}
-
 export function AppProvider({ children }) {
   const { usuario } = useAuth()
-  const uid = usuario?.id || "demo"
-  const k = (n) => `femi:${uid}:${n}`
+  const uid = usuario?.id
 
-  const [clientes,     setClientes]     = useState(() => load(k("clientes"),     CLIENTES_INIT))
-  const [servicos,     setServicos]     = useState(() => load(k("servicos"),     SERVICOS_INIT))
-  const [agendamentos, setAgendamentos] = useState(() => load(k("agendamentos"), AGENDAMENTOS_INIT))
-  const [gastos,       setGastos]       = useState(() => load(k("gastos"),       GASTOS_INIT))
-  const [automacoes,   setAutomacoes]   = useState(() => load(k("automacoes"),   AUTOMACOES_INIT))
-  const [pontosExtra,  setPontosExtra]  = useState(() => load(k("pontos"),       {}))
-  const [resgates,     setResgates]     = useState(() => load(k("resgates"),     []))
+  const [clientes, setClientes] = useState(CLIENTES_INIT)
+  const [servicos, setServicos] = useState(SERVICOS_INIT)
+  const [agendamentos, setAgendamentos] = useState(AGENDAMENTOS_INIT)
+  const [gastos, setGastos] = useState(GASTOS_INIT)
+  const [automacoes, setAutomacoes] = useState(AUTOMACOES_INIT)
+  const [pontosExtra, setPontosExtra] = useState({})
+  const [resgates, setResgates] = useState([])
+  const [loaded, setLoaded] = useState(false)
 
-  // Recarrega dados quando usuário muda (login/logout/troca de conta)
   useEffect(() => {
-    setClientes    (load(k("clientes"),     CLIENTES_INIT))
-    setServicos    (load(k("servicos"),     SERVICOS_INIT))
-    setAgendamentos(load(k("agendamentos"), AGENDAMENTOS_INIT))
-    setGastos      (load(k("gastos"),       GASTOS_INIT))
-    setAutomacoes  (load(k("automacoes"),   AUTOMACOES_INIT))
-    setPontosExtra (load(k("pontos"),       {}))
-    setResgates    (load(k("resgates"),     []))
+    if (!uid) return
+    let active = true
+    setLoaded(false)
+    async function load() {
+      const [clientesData, servicosData, agendamentosData, gastosData, automacoesData, pontosData, resgatesData] = await Promise.all([
+        getUserData(uid, "clientes", CLIENTES_INIT),
+        getUserData(uid, "servicos", SERVICOS_INIT),
+        getUserData(uid, "agendamentos", AGENDAMENTOS_INIT),
+        getUserData(uid, "gastos", GASTOS_INIT),
+        getUserData(uid, "automacoes", AUTOMACOES_INIT),
+        getUserData(uid, "pontos", {}),
+        getUserData(uid, "resgates", []),
+      ])
+      if (!active) return
+      setClientes(clientesData)
+      setServicos(servicosData)
+      setAgendamentos(agendamentosData)
+      setGastos(gastosData)
+      setAutomacoes(automacoesData)
+      setPontosExtra(pontosData)
+      setResgates(resgatesData)
+      setLoaded(true)
+    }
+    load()
+    return () => { active = false }
   }, [uid])
 
-  // Persiste ao alterar
-  useEffect(() => { save(k("clientes"),     clientes)     }, [clientes,     uid])
-  useEffect(() => { save(k("servicos"),     servicos)     }, [servicos,     uid])
-  useEffect(() => { save(k("agendamentos"), agendamentos) }, [agendamentos, uid])
-  useEffect(() => { save(k("gastos"),       gastos)       }, [gastos,       uid])
-  useEffect(() => { save(k("automacoes"),   automacoes)   }, [automacoes,   uid])
-  useEffect(() => { save(k("pontos"),       pontosExtra)  }, [pontosExtra,  uid])
-  useEffect(() => { save(k("resgates"),     resgates)     }, [resgates,     uid])
+  useEffect(() => {
+    if (!uid || !loaded) return
+    saveUserData(uid, "clientes", clientes)
+  }, [uid, clientes, loaded])
+  useEffect(() => {
+    if (!uid || !loaded) return
+    saveUserData(uid, "servicos", servicos)
+  }, [uid, servicos, loaded])
+  useEffect(() => {
+    if (!uid || !loaded) return
+    saveUserData(uid, "agendamentos", agendamentos)
+  }, [uid, agendamentos, loaded])
+  useEffect(() => {
+    if (!uid || !loaded) return
+    saveUserData(uid, "gastos", gastos)
+  }, [uid, gastos, loaded])
+  useEffect(() => {
+    if (!uid || !loaded) return
+    saveUserData(uid, "automacoes", automacoes)
+  }, [uid, automacoes, loaded])
+  useEffect(() => {
+    if (!uid || !loaded) return
+    saveUserData(uid, "pontos", pontosExtra)
+  }, [uid, pontosExtra, loaded])
+  useEffect(() => {
+    if (!uid || !loaded) return
+    saveUserData(uid, "resgates", resgates)
+  }, [uid, resgates, loaded])
 
-  const addCliente      = (c) => setClientes(p => [...p, { ...c, id: Date.now(), pontos: 0, atendimentos: 0 }])
-  const updateCliente   = (id, ch) => setClientes(p => p.map(c => c.id === id ? { ...c, ...ch } : c))
-  const removeCliente   = (id) => setClientes(p => p.filter(c => c.id !== id))
-  const addServico      = (s) => setServicos(p => [...p, { ...s, id: Date.now() }])
-  const removeServico   = (id) => setServicos(p => p.filter(s => s.id !== id))
-  const addAgendamento  = (a) => setAgendamentos(p => [...p, { ...a, id: Date.now(), status: "next" }])
+  const addCliente = (c) => setClientes(p => [...p, { ...c, id: Date.now(), pontos: 0, atendimentos: 0 }])
+  const updateCliente = (id, ch) => setClientes(p => p.map(c => c.id === id ? { ...c, ...ch } : c))
+  const removeCliente = (id) => setClientes(p => p.filter(c => c.id !== id))
+  const addServico = (s) => setServicos(p => [...p, { ...s, id: Date.now() }])
+  const removeServico = (id) => setServicos(p => p.filter(s => s.id !== id))
+  const addAgendamento = (a) => setAgendamentos(p => [...p, { ...a, id: Date.now(), status: "next" }])
   const updateAgendamento = (id, ch) => setAgendamentos(p => p.map(a => a.id === id ? { ...a, ...ch } : a))
-  const addGasto        = (g) => setGastos(p => [{ ...g, id: Date.now() }, ...p])
-  const removeGasto     = (id) => setGastos(p => p.filter(g => g.id !== id))
+  const removeAgendamento = (id) => setAgendamentos(p => p.filter(a => a.id !== id))
+  const addGasto = (g) => setGastos(p => [{ ...g, id: Date.now() }, ...p])
+  const removeGasto = (id) => setGastos(p => p.filter(g => g.id !== id))
   const updateAutomacao = (id, ch) => setAutomacoes(p => p.map(a => a.id === id ? { ...a, ...ch } : a))
 
   const getPontos = (cId) => (clientes.find(c => c.id === cId)?.pontos || 0) + (pontosExtra[cId] || 0)
@@ -78,7 +109,7 @@ export function AppProvider({ children }) {
   const value = useMemo(() => ({
     clientes, servicos, agendamentos, gastos, automacoes, pontosExtra, resgates, receitaMes,
     addCliente, updateCliente, removeCliente, addServico, removeServico,
-    addAgendamento, updateAgendamento, addGasto, removeGasto,
+    addAgendamento, updateAgendamento, removeAgendamento, addGasto, removeGasto,
     getPontos, addPontosCliente, resgatarPontos, removeResgate,
     updateAutomacao, setAutomacoes,
   }), [clientes, servicos, agendamentos, gastos, automacoes, pontosExtra, resgates, receitaMes])

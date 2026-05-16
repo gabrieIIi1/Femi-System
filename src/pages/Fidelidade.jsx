@@ -1,51 +1,40 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState } from "react"
 import { useApp } from "../contexts/AppContext"
 import { C, css, STATUS, STATUS_WPP, CAT_COLOR, CAT_COLORS_FIN } from "../constants/theme"
 import { Ico, Avatar, Badge, MetricCard, Topbar, MiniDonut } from "../components/UI"
-import { initials, fmtDur, fmtData, getWeekDates, getMonthDays, processarMensagem } from "../utils/helpers"
+import { initials } from "../utils/helpers"
 import { MESES, DIAS_SEMANA, HORAS_AGENDA, HORARIOS_BUSY, ORIGEM_OPTS, HORARIO_OPTS,
          PREFS_OPTS, SAUDE_OPTS, CATS_SERVICO, EMOJIS_SERVICO, GASTO_CATS, RECOMPENSAS,
-         META_PONTOS, TODAY, AUTOMACOES_INIT } from "../constants/data"
-import { useLocalStorage } from "../hooks/useLocalStorage"
+         META_PONTOS, TODAY } from "../constants/data"
 
 function Fidelidade() {
-  const { clientes, agendamentos } = useApp()
+  const { clientes, agendamentos, getPontos, addPontosCliente, resgatarPontos, resgates, removeResgate } = useApp()
 
-  // pontos editáveis por cliente (separado do state global para não conflitar)
-  const [pontosExtra, setPontosExtra] = useLocalStorage("bf-pontos-fid", {})
-  const [resgates, setResgates] = useLocalStorage("bf-resgates-fid", [])
-  const [modalCliente, setModalCliente] = useState(null) // id do cliente aberto
+  const [modalCliente, setModalCliente] = useState(null)
   const [addPts, setAddPts] = useState("")
   const [motivoResgate, setMotivoResgate] = useState("15% de desconto")
-  const [confirmDelete, setConfirmDelete] = useState(null) // id do resgate p/ remover
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
-  // pontos reais = pontos base do cliente + extras manuais
-  const getPontos = (c) => (c.pontos || 0) + (pontosExtra[c.id] || 0)
-
-  // atendimentos reais do cliente
   const getAtendimentos = (cId) => agendamentos.filter(a => a.clienteId === cId && a.status === "done").length
 
   const sorted = [...clientes].sort((a, b) => getPontos(b) - getPontos(a))
   const totalPontos = clientes.reduce((s, c) => s + getPontos(c), 0)
-  const resgatesMes = resgates.filter(r => r.data.startsWith("2025-05"))
+  const resgatesMes = resgates.filter(r => r.data.startsWith(TODAY.slice(0, 7)))
 
   const RECOMPENSAS = ["15% de desconto", "Serviço grátis", "Brinde especial", "Frete grátis", "Voucher R$50"]
-  const META = 500 // pontos para recompensa
+  const META = 500
 
   const handleAddPontos = (cId) => {
     const n = parseInt(addPts)
     if (!n || n <= 0) return
-    setPontosExtra(p => ({ ...p, [cId]: (p[cId] || 0) + n }))
+    addPontosCliente(cId, n)
     setAddPts("")
   }
 
   const handleResgatar = (c) => {
     const pts = getPontos(c)
     if (pts < META) return
-    const novo = { id: Date.now(), clienteId: c.id, clienteNome: c.nome, recompensa: motivoResgate, pontos: META, data: "2025-05-14" }
-    setResgates(r => [novo, ...r])
-    // debita os pontos
-    setPontosExtra(p => ({ ...p, [c.id]: (p[c.id] || 0) - META }))
+    resgatarPontos(c, motivoResgate, META)
     setModalCliente(null)
   }
 
@@ -226,7 +215,7 @@ function Fidelidade() {
                 <div style={{ fontSize: 12, color: C.red, fontWeight: 700, marginBottom: 10 }}>Remover este resgate?</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => setConfirmDelete(null)} style={css.btn("ghost")}>Cancelar</button>
-                  <button onClick={() => { setResgates(r => r.filter(x => x.id !== confirmDelete)); setConfirmDelete(null) }}
+                  <button onClick={() => { removeResgate(confirmDelete); setConfirmDelete(null) }}
                     style={{ ...css.btn(), background: C.red, boxShadow: "none" }}>
                     <Ico name="trash" size={13} /> Remover
                   </button>

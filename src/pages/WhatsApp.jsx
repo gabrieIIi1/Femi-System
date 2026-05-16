@@ -1,32 +1,28 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState } from "react"
 import { useApp } from "../contexts/AppContext"
 import { C, css, STATUS, STATUS_WPP, CAT_COLOR, CAT_COLORS_FIN } from "../constants/theme"
 import { Ico, Avatar, Badge, MetricCard, Topbar, MiniDonut } from "../components/UI"
-import { initials, fmtDur, fmtData, getWeekDates, getMonthDays, processarMensagem } from "../utils/helpers"
+import { initials } from "../utils/helpers"
 import { MESES, DIAS_SEMANA, HORAS_AGENDA, HORARIOS_BUSY, ORIGEM_OPTS, HORARIO_OPTS,
          PREFS_OPTS, SAUDE_OPTS, CATS_SERVICO, EMOJIS_SERVICO, GASTO_CATS, RECOMPENSAS,
-         META_PONTOS, TODAY, AUTOMACOES_INIT } from "../constants/data"
-import { useLocalStorage } from "../hooks/useLocalStorage"
+         META_PONTOS, TODAY } from "../constants/data"
 
-
-function WhatsApp({ setPage }) {
-  const { clientes, agendamentos } = useApp()
-  const [automacoes, setAutomacoes] = useLocalStorage("bf-automacoes-wpp", AUTOMACOES_INIT)
-  const [editando, setEditando] = useState(null)      // id da automação em edição
+function WhatsApp() {
+  const { clientes, agendamentos, automacoes, updateAutomacao } = useApp()
+  const [editando, setEditando] = useState(null)
   const [msgEdit, setMsgEdit] = useState("")
-  const [simCliente, setSimCliente] = useState(null)  // id p/ simulação
-  const [abaWpp, setAbaWpp] = useState("automacoes")  // "automacoes" | "historico" | "simular"
+  const [simCliente, setSimCliente] = useState(null)
+  const [abaWpp, setAbaWpp] = useState("automacoes")
 
   const toggleStatus = (id) => {
-    setAutomacoes(prev => prev.map(a => {
-      if (a.id !== id) return a
-      const next = a.status === "ativo" ? "pausado" : a.status === "pausado" ? "ativo" : a.status
-      return { ...a, status: next }
-    }))
+    const automacao = automacoes.find(a => a.id === id)
+    if (!automacao) return
+    const nextStatus = automacao.status === "ativo" ? "pausado" : automacao.status === "pausado" ? "ativo" : automacao.status
+    updateAutomacao(id, { status: nextStatus })
   }
 
   const saveEdit = (id) => {
-    setAutomacoes(prev => prev.map(a => a.id === id ? { ...a, mensagem: msgEdit } : a))
+    updateAutomacao(id, { mensagem: msgEdit })
     setEditando(null)
   }
 

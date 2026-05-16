@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { useApp } from "../contexts/AppContext"
 import { C, css, STATUS, STATUS_WPP, CAT_COLOR, CAT_COLORS_FIN } from "../constants/theme"
 import { Ico, Avatar, Badge, MetricCard, Topbar, MiniDonut } from "../components/UI"
@@ -9,17 +10,23 @@ import { MESES, DIAS_SEMANA, HORAS_AGENDA, HORARIOS_BUSY, ORIGEM_OPTS, HORARIO_O
 import { useLocalStorage } from "../hooks/useLocalStorage"
 
 
-function NovaCliente({ setPage }) {
+function NovaCliente() {
+  const navigate = useNavigate()
   const { addCliente } = useApp()
   const [step, setStep] = useState(1)
   const [saved, setSaved] = useState(false)
   const [form, setForm] = useState({ nome: "", wpp: "", nasc: "", email: "", origem: "", servicos: [], horario: "Tarde", alergias: [], saude: [], obs: "" })
+  const [erro, setErro] = useState("")
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const tog = (k, v) => set(k, form[k].includes(v) ? form[k].filter(x => x !== v) : [...form[k], v])
 
   const handleSave = () => {
-    if (!form.nome.trim() || !form.wpp.trim()) return
+    if (!form.nome.trim() || !form.wpp.trim()) {
+      setErro("Informe o nome e o WhatsApp da cliente para continuar.")
+      return
+    }
+    setErro("")
     addCliente({ ...form, servicos: form.servicos.map(s => s.replace(/^.+\s/, "")) })
     setSaved(true)
   }
@@ -37,7 +44,7 @@ function NovaCliente({ setPage }) {
         <div style={{ fontSize: 13, color: C.textLight, marginBottom: 20 }}>Cadastrada com sucesso! 🎉</div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => { setSaved(false); setStep(1); setForm({ nome:"",wpp:"",nasc:"",email:"",origem:"",servicos:[],horario:"Tarde",alergias:[],saude:[],obs:"" }) }} style={css.btn("ghost")}>+ Nova</button>
-          <button onClick={() => setPage("agendamento")} style={{ ...css.btn(), flex: 1 }}>Agendar agora →</button>
+          <button onClick={() => navigate("/agendamento")} style={{ ...css.btn(), flex: 1 }}>Agendar agora →</button>
         </div>
       </div>
     </div>
@@ -48,7 +55,7 @@ function NovaCliente({ setPage }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "0 20px", height: 52, display: "flex", alignItems: "center", gap: 8 }}>
-        <button onClick={() => setPage("clientes")} style={{ background: "none", border: "none", cursor: "pointer", color: C.primary, fontSize: 13, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+        <button onClick={() => navigate("/clientes")} style={{ background: "none", border: "none", cursor: "pointer", color: C.primary, fontSize: 13, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
           <Ico name="arrow" size={14} /> Clientes
         </button>
         <span style={{ color: C.textLight }}>/</span>
@@ -88,6 +95,11 @@ function NovaCliente({ setPage }) {
               <option value="">Selecione</option>
               {ORIGEM_OPTS.map(o => <option key={o}>{o}</option>)}
             </select>
+            {step === 1 && !form.nome.trim() && !form.wpp.trim() && (
+              <div style={{ marginTop: 12, color: C.red, fontSize: 12, fontWeight: 600 }}>
+                Nome e WhatsApp são obrigatórios para avançar.
+              </div>
+            )}
           </div>
         )}
 
@@ -125,7 +137,7 @@ function NovaCliente({ setPage }) {
       <div style={{ display: "flex", gap: 8, padding: "14px 20px", borderTop: `1px solid ${C.border}`, background: "#fff" }}>
         {step > 1 && <button onClick={() => setStep(s => s - 1)} style={css.btn("ghost")}>← Voltar</button>}
         {step < 3 ? (
-          <button onClick={() => setStep(s => s + 1)} style={{ ...css.btn(), flex: 2 }} disabled={step === 1 && (!form.nome || !form.wpp)}>
+          <button onClick={() => { if (step === 1 && (!form.nome.trim() || !form.wpp.trim())) return; setStep(s => s + 1) }} style={{ ...css.btn(), flex: 2, opacity: step === 1 && (!form.nome.trim() || !form.wpp.trim()) ? 0.6 : 1, cursor: step === 1 && (!form.nome.trim() || !form.wpp.trim()) ? "not-allowed" : "pointer" }} disabled={step === 1 && (!form.nome.trim() || !form.wpp.trim())}>
             Próximo →
           </button>
         ) : (
@@ -134,6 +146,11 @@ function NovaCliente({ setPage }) {
           </button>
         )}
       </div>
+      {erro && (
+        <div style={{ padding: "12px 20px", color: C.red, background: "#fff0f4", border: `1px solid #ffd1df`, borderRadius: 12, margin: "0 20px 20px", fontSize: 13, fontWeight: 600 }}>
+          {erro}
+        </div>
+      )}
     </div>
   )
 }

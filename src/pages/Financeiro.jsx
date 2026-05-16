@@ -1,12 +1,11 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { useApp } from "../contexts/AppContext"
 import { C, css, STATUS, STATUS_WPP, CAT_COLOR, CAT_COLORS_FIN } from "../constants/theme"
 import { Ico, Avatar, Badge, MetricCard, Topbar, MiniDonut } from "../components/UI"
 import { initials, fmtDur, fmtData, getWeekDates, getMonthDays, processarMensagem } from "../utils/helpers"
 import { MESES, DIAS_SEMANA, HORAS_AGENDA, HORARIOS_BUSY, ORIGEM_OPTS, HORARIO_OPTS,
          PREFS_OPTS, SAUDE_OPTS, CATS_SERVICO, EMOJIS_SERVICO, GASTO_CATS, RECOMPENSAS,
-         META_PONTOS, TODAY, AUTOMACOES_INIT, GASTOS_INIT } from "../constants/data"
-import { useLocalStorage } from "../hooks/useLocalStorage"
+         META_PONTOS, TODAY } from "../constants/data"
 
 
 // Gastos iniciais de exemplo
@@ -29,27 +28,38 @@ function FinBarChart({ entradas, gastos, labels }) {
 }
 
 function Financeiro() {
-  const { agendamentos, clientes, servicos } = useApp()
+  const { agendamentos, clientes, servicos, gastos, addGasto, removeGasto } = useApp()
 
-  // ── Estado de gastos (persiste em localStorage) ──
-  const [gastos, setGastos] = useLocalStorage("bf-gastos-fin", GASTOS_INIT)
   const [showGastoForm, setShowGastoForm] = useState(false)
-  const [gastoForm, setGastoForm] = useState({ desc: "", valor: "", data: "2025-05-14", cat: "Material" })
-  const [filtroMes, setFiltroMes] = useState("2025-05")
+  const [gastoForm, setGastoForm] = useState({ desc: "", valor: "", data: TODAY, cat: "Material" })
+  const [filtroMes, setFiltroMes] = useState(TODAY.slice(0, 7))
   const [abaAtiva, setAbaAtiva] = useState("visao")
   const [confirmGasto, setConfirmGasto] = useState(null)
+  const [erroGasto, setErroGasto] = useState("")
 
   const setG = (k, v) => setGastoForm(f => ({ ...f, [k]: v }))
 
-  const addGasto = () => {
-    if (!gastoForm.desc.trim() || !gastoForm.valor) return
-    const novo = { id: Date.now(), desc: gastoForm.desc, valor: parseFloat(gastoForm.valor), data: gastoForm.data, cat: gastoForm.cat }
-    setGastos(g => [novo, ...g])
-    setGastoForm({ desc: "", valor: "", data: "2025-05-14", cat: "Material" })
+  const handleAddGasto = () => {
+    if (!gastoForm.desc.trim()) {
+      setErroGasto("Descrição do gasto é obrigatória.")
+      return
+    }
+    if (!gastoForm.valor || Number(gastoForm.valor) <= 0) {
+      setErroGasto("Valor precisa ser maior que zero.")
+      return
+    }
+    setErroGasto("")
+    addGasto({
+      desc: gastoForm.desc,
+      valor: parseFloat(gastoForm.valor),
+      data: gastoForm.data,
+      cat: gastoForm.cat,
+    })
+    setGastoForm({ desc: "", valor: "", data: TODAY, cat: "Material" })
     setShowGastoForm(false)
   }
 
-  const removeGasto = (id) => { setGastos(g => g.filter(x => x.id !== id)); setConfirmGasto(null) }
+  const handleRemoveGasto = (id) => { removeGasto(id); setConfirmGasto(null) }
 
   // ── Cálculos reais a partir dos agendamentos ──
   const agsMes = agendamentos.filter(a => a.status !== "cancel" && a.data.startsWith(filtroMes))
@@ -91,10 +101,14 @@ function Financeiro() {
     return gastosMes.filter(g => { const d = parseInt(g.data.split("-")[2]); return d >= ini && d <= fim }).reduce((s, g) => s + g.valor, 0)
   })
 
-  const MESES_OPTS = [
-    ["2025-01","Janeiro"], ["2025-02","Fevereiro"], ["2025-03","Março"],
-    ["2025-04","Abril"], ["2025-05","Maio"], ["2025-06","Junho"],
-  ]
+  const todayDate = new Date(TODAY)
+  const MESES_OPTS = Array.from({ length: 6 }, (_, i) => {
+    const date = new Date(todayDate.getFullYear(), todayDate.getMonth() - (5 - i), 1)
+    return [
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+      date.toLocaleDateString("pt-BR", { month: "long" }),
+    ]
+  })
 
   const GASTO_CATS = ["Material", "Aluguel", "Sistema", "Transporte", "Marketing", "Outros"]
 
@@ -300,9 +314,14 @@ function Financeiro() {
                     </select>
                   </div>
                 </div>
+                {erroGasto && (
+                  <div style={{ marginTop: 12, color: C.red, background: "#fff0f4", border: "1px solid #ffd1df", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>
+                    {erroGasto}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                   <button onClick={() => setShowGastoForm(false)} style={css.btn("ghost")}>Cancelar</button>
-                  <button onClick={addGasto} style={css.btn()}>
+                  <button onClick={handleAddGasto} style={css.btn()}>
                     <Ico name="check" size={13} /> Salvar gasto
                   </button>
                 </div>
@@ -335,7 +354,7 @@ function Financeiro() {
                     {confirmGasto === g.id ? (
                       <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
                         <span style={{ fontSize: 10, color: C.red, fontWeight: 700 }}>Remover?</span>
-                        <button onClick={() => removeGasto(g.id)} style={{ fontSize: 10, fontWeight: 700, background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "inherit" }}>Sim</button>
+                        <button onClick={() => handleRemoveGasto(g.id)} style={{ fontSize: 10, fontWeight: 700, background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "inherit" }}>Sim</button>
                         <button onClick={() => setConfirmGasto(null)} style={{ fontSize: 10, fontWeight: 700, background: C.bg, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "inherit" }}>Não</button>
                       </div>
                     ) : (

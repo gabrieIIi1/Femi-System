@@ -10,20 +10,15 @@ import { useLocalStorage } from "../hooks/useLocalStorage"
 
 
 function Agenda({ setPage }) {
-  const { agendamentos, clientes, servicos } = useApp()
+  const { agendamentos, clientes, servicos, updateAgendamento, removeAgendamento } = useApp()
   const [view, setView] = useState("semana")
-  const [mes, setMes] = useState(4)
+  const [mes, setMes] = useState(new Date().getMonth())
   const [semana, setSemana] = useState(0)
   const [diaSelected, setDiaSelected] = useState(TODAY)
+  const [selectedAppt, setSelectedAppt] = useState(null)
 
-  const weekDates = useMemo(() => {
-    const base = new Date("2025-05-11")
-    base.setDate(base.getDate() + semana * 7)
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(base); d.setDate(base.getDate() + i)
-      return d.toISOString().split("T")[0]
-    })
-  }, [semana])
+  const weekDates = useMemo(() => getWeekDates(TODAY, semana), [semana])
+  const currentYear = new Date(TODAY).getFullYear()
 
   const getSlots = (date) => agendamentos.filter(a => a.data === date).map(a => ({
     ...a, cliente: clientes.find(c => c.id === a.clienteId), servico: servicos.find(s => s.id === a.servicoId)
@@ -31,19 +26,20 @@ function Agenda({ setPage }) {
 
   const monthDays = useMemo(() => {
     const days = []
-    const first = new Date(2025, mes, 1).getDay()
-    const prev = new Date(2025, mes, 0).getDate()
+    const first = new Date(currentYear, mes, 1).getDay()
+    const prev = new Date(currentYear, mes, 0).getDate()
     for (let i = first - 1; i >= 0; i--) days.push({ d: prev - i, other: true })
-    const last = new Date(2025, mes + 1, 0).getDate()
+    const last = new Date(currentYear, mes + 1, 0).getDate()
     for (let d = 1; d <= last; d++) days.push({ d, other: false })
     while (days.length % 7 !== 0) days.push({ d: days.length - last - first + 1, other: true })
     return days
-  }, [mes])
+  }, [mes, currentYear])
 
+  const mesIso = `${currentYear}-${String(mes + 1).padStart(2, "0")}`
   const stats = [
     ["Hoje", agendamentos.filter(a => a.data === TODAY && a.status !== "cancel").length],
-    ["Este mês", agendamentos.filter(a => a.data.startsWith("2025-05") && a.status !== "cancel").length],
-    ["Receita mai.", `R$${agendamentos.filter(a => a.data.startsWith("2025-05") && a.status !== "cancel").reduce((s, a) => s + a.valor, 0).toLocaleString("pt-BR")}`],
+    ["Este mês", agendamentos.filter(a => a.data.startsWith(mesIso) && a.status !== "cancel").length],
+    ["Receita do mês", `R$${agendamentos.filter(a => a.data.startsWith(mesIso) && a.status !== "cancel").reduce((s, a) => s + Number(a.valor || 0), 0).toLocaleString("pt-BR")}`],
     ["Taxa retorno", "87%"],
   ]
 
@@ -52,13 +48,14 @@ function Agenda({ setPage }) {
   )
 
   const daySlots = getSlots(diaSelected)
+  const selectedAppointment = selectedAppt ? daySlots.find(a => a.id === selectedAppt) : null
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {/* Topbar */}
       <div style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "0 20px", height: 52, display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
         <button onClick={() => { setMes(m => (m - 1 + 12) % 12); setSemana(w => w - 1) }} style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Ico name="chevLeft" size={14} /></button>
-        <span style={{ fontSize: 14, fontWeight: 600, color: C.text, minWidth: 110, textAlign: "center" }}>{MESES[mes]} 2025</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: C.text, minWidth: 110, textAlign: "center" }}>{MESES[mes]} {currentYear}</span>
         <button onClick={() => { setMes(m => (m + 1) % 12); setSemana(w => w + 1) }} style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Ico name="chevRight" size={14} /></button>
         <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
           {[["dia","Dia"],["semana","Semana"],["mes","Mês"]].map(([v,l]) => <ViewBtn key={v} v={v} label={l} />)}
@@ -132,7 +129,7 @@ function Agenda({ setPage }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>
             {monthDays.map(({ d, other }, i) => {
-              const ds = `2025-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+              const ds = `${currentYear}-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
               const evs = !other ? agendamentos.filter(a => a.data === ds) : []
               const isToday = ds === TODAY && !other
               return (
@@ -172,38 +169,88 @@ function Agenda({ setPage }) {
               ))}
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-            {daySlots.length === 0 && (
-              <div style={{ textAlign: "center", padding: "3rem", color: C.textLight }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📅</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Nenhum atendimento</div>
-                <div style={{ fontSize: 12 }}>Clique em "Novo agendamento" para adicionar</div>
-              </div>
-            )}
-            {daySlots.map(a => {
-              const st = STATUS[a.status]
-              return (
-                <div key={a.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                  <div style={{ fontSize: 11, color: C.textLight, width: 40, flexShrink: 0, paddingTop: 12, textAlign: "right", fontWeight: 600 }}>{a.hora}</div>
-                  <div style={{ width: 3, alignSelf: "stretch", background: st.color, borderRadius: 3, flexShrink: 0 }} />
-                  <div style={{ flex: 1, borderRadius: 12, padding: "12px 14px", border: `1px solid ${st.border}`, background: st.bg }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.cliente?.nome}</div>
-                        <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{a.servico?.nome} · {fmtDur(a.servico?.dur)} · <span style={{ fontWeight: 700, color: C.primary }}>R${a.valor}</span></div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "grid", gridTemplateColumns: selectedAppointment ? "1.5fr 0.9fr" : "1fr", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {daySlots.length === 0 && (
+                <div style={{ textAlign: "center", padding: "3rem", color: C.textLight }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>📅</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Nenhum atendimento</div>
+                  <div style={{ fontSize: 12 }}>Clique em "Novo agendamento" para adicionar</div>
+                </div>
+              )}
+              {daySlots.map(a => {
+                const st = STATUS[a.status]
+                const isSelected = selectedAppt === a.id
+                return (
+                  <div key={a.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", background: isSelected ? C.bg : "transparent", borderRadius: 16, padding: isSelected ? "14px" : 0 }}
+                    onClick={() => setSelectedAppt(a.id)}>
+                    <div style={{ fontSize: 11, color: C.textLight, width: 40, flexShrink: 0, paddingTop: 12, textAlign: "right", fontWeight: 600 }}>{a.hora}</div>
+                    <div style={{ width: 3, alignSelf: "stretch", background: st.color, borderRadius: 3, flexShrink: 0 }} />
+                    <div style={{ flex: 1, borderRadius: 12, padding: "12px 14px", border: `1px solid ${st.border}`, background: st.bg }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.cliente?.nome}</div>
+                          <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{a.servico?.nome} · {fmtDur(a.servico?.dur)} · <span style={{ fontWeight: 700, color: C.primary }}>R${a.valor}</span></div>
+                        </div>
+                        <Badge status={a.status} />
                       </div>
-                      <Badge status={a.status} />
+                      {a.cliente?.alergias?.length > 0 && (
+                        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 5, fontSize: 11, background: C.amberBg, borderRadius: 6, padding: "4px 8px", width: "fit-content" }}>
+                          <Ico name="alert" size={11} color={C.amber} />
+                          <span style={{ color: "#7a4a08", fontWeight: 600 }}>Alergia: {a.cliente.alergias.join(", ")}</span>
+                        </div>
+                      )}
                     </div>
-                    {a.cliente?.alergias?.length > 0 && (
-                      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 5, fontSize: 11, background: C.amberBg, borderRadius: 6, padding: "4px 8px", width: "fit-content" }}>
-                        <Ico name="alert" size={11} color={C.amber} />
-                        <span style={{ color: "#7a4a08", fontWeight: 600 }}>Alergia: {a.cliente.alergias.join(", ")}</span>
-                      </div>
-                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {selectedAppointment && (
+              <div style={{ ...css.card, position: "sticky", top: 16, alignSelf: "flex-start" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Detalhes do atendimento</div>
+                    <div style={{ fontSize: 11, color: C.textLight }}>Toque em ações para atualizar.</div>
+                  </div>
+                  <button onClick={() => setSelectedAppt(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.textLight }}><Ico name="x" size={16} /></button>
+                </div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div style={{ fontSize: 12, color: C.textLight }}>Cliente</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{selectedAppointment.cliente?.nome}</div>
+                  <div style={{ fontSize: 12, color: C.textLight }}>Serviço</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{selectedAppointment.servico?.emoji} {selectedAppointment.servico?.nome}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: C.textLight }}>Data</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{selectedAppointment.data.split("-").reverse().join("/")}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: C.textLight }}>Horário</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{selectedAppointment.hora}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: C.textLight }}>Status</div>
+                      <Badge status={selectedAppointment.status} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: C.textLight }}>Valor</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>R${selectedAppointment.valor}</div>
+                    </div>
                   </div>
                 </div>
-              )
-            })}
+                <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+                  {selectedAppointment.status !== "done" && (
+                    <button onClick={() => { updateAgendamento(selectedAppointment.id, { status: "done" }); setSelectedAppt(selectedAppointment.id) }} style={css.btn()}>Marcar como concluído</button>
+                  )}
+                  {selectedAppointment.status !== "cancel" && (
+                    <button onClick={() => { updateAgendamento(selectedAppointment.id, { status: "cancel" }); setSelectedAppt(selectedAppointment.id) }} style={css.btn("ghost")}>Cancelar atendimento</button>
+                  )}
+                  <button onClick={() => { removeAgendamento(selectedAppointment.id); setSelectedAppt(null) }} style={{ ...css.btn("ghost"), color: C.red, borderColor: C.red }}>Excluir agendamento</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

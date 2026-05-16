@@ -14,6 +14,17 @@ export const fmtDur = (m) =>
 export const fmtData = (iso) =>
   iso ? iso.split("-").reverse().join("/") : ""
 
+/** Valida e-mail simples */
+export function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "")
+}
+
+/** Valida telefone/WhatsApp com DDD e dígitos suficientes */
+export function isValidPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "")
+  return digits.length >= 10 && digits.length <= 13
+}
+
 /** "(41) 98888-1111" → "5541988881111" */
 export function formatarNumeroWpp(wpp) {
   const d = wpp.replace(/\D/g, "")
@@ -26,12 +37,13 @@ export function formatarNumeroWpp(wpp) {
 // ─── CALENDÁRIO ────────────────────────────────────────────────
 
 /** Retorna array de 7 datas ISO da semana, a partir de offset */
-export function getWeekDates(baseDate = "2025-05-11", offset = 0) {
-  const base = new Date(baseDate)
-  base.setDate(base.getDate() + offset * 7)
+export function getWeekDates(baseDate = new Date(), offset = 0) {
+  const date = baseDate instanceof Date ? new Date(baseDate) : new Date(baseDate)
+  const startOfWeek = new Date(date)
+  startOfWeek.setDate(date.getDate() - date.getDay() + offset * 7)
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(base)
-    d.setDate(base.getDate() + i)
+    const d = new Date(startOfWeek)
+    d.setDate(startOfWeek.getDate() + i)
     return d.toISOString().split("T")[0]
   })
 }

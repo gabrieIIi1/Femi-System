@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { useApp } from "../contexts/AppContext"
 import { C, css, STATUS, STATUS_WPP, CAT_COLOR, CAT_COLORS_FIN } from "../constants/theme"
 import { Ico, Avatar, Badge, MetricCard, Topbar, MiniDonut } from "../components/UI"
@@ -8,7 +9,8 @@ import { MESES, DIAS_SEMANA, HORAS_AGENDA, HORARIOS_BUSY, ORIGEM_OPTS, HORARIO_O
          META_PONTOS, TODAY, AUTOMACOES_INIT } from "../constants/data"
 import { useLocalStorage } from "../hooks/useLocalStorage"
 
-function Clientes({ setPage }) {
+function Clientes() {
+  const navigate = useNavigate()
   const { clientes } = useApp()
   const [busca, setBusca] = useState("")
   const [selected, setSelected] = useState(null)
@@ -22,7 +24,7 @@ function Clientes({ setPage }) {
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <div style={{ width: selected ? 320 : "100%", borderRight: selected ? `1px solid ${C.border}` : "none", display: "flex", flexDirection: "column" }}>
         <Topbar title={`Clientes (${clientes.length})`} action={
-          <button onClick={() => setPage("nova-cliente")} style={css.btn()}>
+          <button onClick={() => navigate("/nova-cliente")} style={css.btn()}>
             <Ico name="plus" size={13} /> Nova cliente
           </button>
         } />
@@ -93,7 +95,7 @@ function Clientes({ setPage }) {
               </div>
             )}
 
-            <button onClick={() => setPage("agendamento")} style={{ ...css.btn(), width: "100%", justifyContent: "center", marginTop: 8 }}>
+            <button onClick={() => navigate("/agendamento")} style={{ ...css.btn(), width: "100%", justifyContent: "center", marginTop: 8 }}>
               <Ico name="plus" size={14} /> Agendar atendimento
             </button>
           </div>

@@ -1,16 +1,17 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { C, css } from "../constants/theme"
+import { isValidEmail, isValidPhone } from "../utils/helpers"
 
 export default function Login() {
   const { cadastrar, entrar } = useAuth()
-  const [modo, setModo]       = useState("entrar") // "entrar" | "cadastrar"
-  const [erro, setErro]       = useState("")
+  const navigate = useNavigate()
+  const [modo, setModo] = useState("entrar")
+  const [erro, setErro] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const [form, setForm] = useState({
-    nome: "", negocio: "", profissao: "", email: "", senha: "",
-  })
+  const [form, setForm] = useState({ nome: "", negocio: "", profissao: "", email: "", senha: "" })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const handleSubmit = async (e) => {
@@ -18,14 +19,30 @@ export default function Login() {
     setErro("")
     setLoading(true)
 
-    await new Promise(r => setTimeout(r, 300)) // UX: pequeno delay
+    await new Promise(r => setTimeout(r, 300))
+
+    if (!isValidEmail(form.email)) {
+      setErro("Informe um e-mail válido.")
+      setLoading(false)
+      return
+    }
+    if (form.senha.length < 6) {
+      setErro("A senha precisa ter pelo menos 6 caracteres.")
+      setLoading(false)
+      return
+    }
 
     const res = modo === "cadastrar"
-      ? cadastrar(form)
-      : entrar(form)
+      ? await cadastrar(form)
+      : await entrar(form)
 
-    if (!res.ok) setErro(res.erro)
-    setLoading(false)
+    if (!res.ok) {
+      setErro(res.erro)
+      setLoading(false)
+      return
+    }
+
+    navigate("/dashboard")
   }
 
   const inp = {

@@ -1,5 +1,18 @@
-// ─── DATA FIXA ────────────────────────────────────────────────
-export const TODAY = "2025-05-14"
+// ─── DATAS DINÂMICAS ──────────────────────────────────────────
+const now = new Date()
+const pad = (value) => String(value).padStart(2, "0")
+export const TODAY = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+
+function formatDate(value) {
+  const date = value instanceof Date ? value : new Date(value)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function addDays(value, offset) {
+  const date = value instanceof Date ? value : new Date(value)
+  date.setDate(date.getDate() + offset)
+  return formatDate(date)
+}
 
 export const MESES = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -43,18 +56,18 @@ export const SERVICOS_INIT = [
 ]
 
 export const AGENDAMENTOS_INIT = [
-  { id:1, clienteId:1, servicoId:1, data:"2025-05-14", hora:"09:00", status:"done", valor:150 },
-  { id:2, clienteId:2, servicoId:3, data:"2025-05-14", hora:"11:30", status:"done", valor:55  },
-  { id:3, clienteId:3, servicoId:2, data:"2025-05-14", hora:"14:00", status:"next", valor:180 },
-  { id:4, clienteId:4, servicoId:4, data:"2025-05-15", hora:"10:00", status:"next", valor:45  },
-  { id:5, clienteId:1, servicoId:5, data:"2025-05-15", hora:"13:00", status:"next", valor:85  },
+  { id:1, clienteId:1, servicoId:1, data: TODAY,               hora:"09:00", status:"done",  valor:150 },
+  { id:2, clienteId:2, servicoId:3, data: TODAY,               hora:"11:30", status:"done",  valor:55  },
+  { id:3, clienteId:3, servicoId:2, data: TODAY,               hora:"14:00", status:"next",  valor:180 },
+  { id:4, clienteId:4, servicoId:4, data: addDays(TODAY, 1),   hora:"10:00", status:"next",  valor:45  },
+  { id:5, clienteId:1, servicoId:5, data: addDays(TODAY, 2),   hora:"13:00", status:"next",  valor:85  },
 ]
 
 export const GASTOS_INIT = [
-  { id:1, desc:"Material — Cílios",    valor:180, data:"2025-05-13", cat:"Material" },
-  { id:2, desc:"Material — Unhas gel", valor:95,  data:"2025-05-12", cat:"Material" },
-  { id:3, desc:"Taxa sistema",         valor:49,  data:"2025-05-01", cat:"Sistema"  },
-  { id:4, desc:"Aluguel sala",         valor:300, data:"2025-05-01", cat:"Aluguel"  },
+  { id:1, desc:"Material — Cílios",    valor:180, data:addDays(TODAY, -1), cat:"Material" },
+  { id:2, desc:"Material — Unhas gel", valor:95,  data:addDays(TODAY, -2), cat:"Material" },
+  { id:3, desc:"Taxa sistema",         valor:49,  data:addDays(TODAY, -13), cat:"Sistema"  },
+  { id:4, desc:"Aluguel sala",         valor:300, data:addDays(TODAY, -13), cat:"Aluguel"  },
 ]
 
 export const PERFIL_INIT = {

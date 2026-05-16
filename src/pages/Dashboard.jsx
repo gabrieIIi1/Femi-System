@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { useApp } from "../contexts/AppContext"
 import { C, css, STATUS, STATUS_WPP, CAT_COLOR, CAT_COLORS_FIN } from "../constants/theme"
 import { Ico, Avatar, Badge, MetricCard, Topbar, MiniDonut } from "../components/UI"
@@ -8,7 +9,8 @@ import { MESES, DIAS_SEMANA, HORAS_AGENDA, HORARIOS_BUSY, ORIGEM_OPTS, HORARIO_O
          META_PONTOS, TODAY, AUTOMACOES_INIT } from "../constants/data"
 import { useLocalStorage } from "../hooks/useLocalStorage"
 
-function Dashboard({ setPage }) {
+function Dashboard() {
+  const navigate = useNavigate()
   const { clientes, agendamentos, servicos, receitaMes, perfil } = useApp()
   const hoje = agendamentos.filter(a => a.data === TODAY)
   const hora = new Date().getHours()
@@ -55,7 +57,7 @@ function Dashboard({ setPage }) {
               {perfil?.nome || "Gabriela Santos"}
             </div>
             <div style={{ fontSize:12, color:"rgba(255,255,255,.5)", marginTop:3 }}>
-              Quarta-feira, 14 de maio de 2025 · {hoje.filter(a=>a.status!=="cancel").length} atendimentos hoje
+              {new Date(TODAY + "T12:00:00").toLocaleDateString("pt-BR", { weekday:"long", day:"numeric", month:"long", year:"numeric" })} · {hoje.filter(a=>a.status!=="cancel").length} atendimentos hoje
             </div>
           </div>
 
@@ -117,7 +119,7 @@ function Dashboard({ setPage }) {
             {/* header colorido */}
             <div style={{ background:`linear-gradient(135deg, ${C.primaryLight}, #fff5f8)`, padding:"14px 18px 12px", borderBottom:`1px solid ${C.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ fontSize:13, fontWeight:700, color:C.text }}>Agenda de hoje</div>
-              <button onClick={() => setPage("agenda")} style={{ fontSize:11, color:C.primary, background:"none", border:`1px solid ${C.primaryMid}`, borderRadius:12, padding:"3px 10px", cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Ver agenda →</button>
+              <button onClick={() => navigate("/agenda")} style={{ fontSize:11, color:C.primary, background:"none", border:`1px solid ${C.primaryMid}`, borderRadius:12, padding:"3px 10px", cursor:"pointer", fontWeight:700, fontFamily:"inherit" }}>Ver agenda →</button>
             </div>
 
             <div style={{ display:"flex", gap:0 }}>
@@ -199,7 +201,7 @@ function Dashboard({ setPage }) {
               <div style={{ fontSize:13, fontWeight:700, color:C.text, display:"flex", alignItems:"center", gap:6 }}>
                 <Ico name="star" size={14} color={C.primary} /> Top clientes
               </div>
-              <button onClick={() => setPage("fidelidade")} style={{ fontSize:11, color:C.primary, background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>Ver fidelidade →</button>
+              <button onClick={() => navigate("/fidelidade")} style={{ fontSize:11, color:C.primary, background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>Ver fidelidade →</button>
             </div>
             {topClientes.slice(0,4).map((c, i) => {
               const pct = Math.min(100, Math.round((c.pontos / 500) * 100))

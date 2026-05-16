@@ -1,23 +1,28 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { useApp } from "../contexts/AppContext"
-import { C, css, STATUS, STATUS_WPP, CAT_COLOR, CAT_COLORS_FIN } from "../constants/theme"
-import { Ico, Avatar, Badge, MetricCard, Topbar, MiniDonut } from "../components/UI"
-import { initials, fmtDur, fmtData, getWeekDates, getMonthDays, processarMensagem } from "../utils/helpers"
-import { MESES, DIAS_SEMANA, HORAS_AGENDA, HORARIOS_BUSY, ORIGEM_OPTS, HORARIO_OPTS,
-         PREFS_OPTS, SAUDE_OPTS, CATS_SERVICO, EMOJIS_SERVICO, GASTO_CATS, RECOMPENSAS,
-         META_PONTOS, TODAY, AUTOMACOES_INIT } from "../constants/data"
-import { useLocalStorage } from "../hooks/useLocalStorage"
+import { C, css } from "../constants/theme"
+import { Ico, Avatar } from "../components/UI"
+import { fmtDur } from "../utils/helpers"
+import { HORAS_AGENDA, HORARIOS_BUSY, TODAY } from "../constants/data"
 
-
-function Agendamento({ setPage }) {
+function Agendamento() {
+  const navigate = useNavigate()
   const { clientes, servicos, addAgendamento } = useApp()
   const [step, setStep] = useState(1)
   const [done, setDone] = useState(false)
-  const [sel, setSel] = useState({ cli: null, srv: null, data: "2025-05-15", hora: "14:00" })
+  const [sel, setSel] = useState({ cli: null, srv: null, data: TODAY, hora: "14:00" })
   const set = (k, v) => setSel(s => ({ ...s, [k]: v }))
 
   const cli = clientes.find(c => c.id === sel.cli)
   const srv = servicos.find(s => s.id === sel.srv)
+  const stepValid = useMemo(() => {
+    if (step === 1) return !!sel.cli
+    if (step === 2) return !!sel.srv
+    if (step === 3) return !!sel.data && !!sel.hora && !HORARIOS_BUSY.includes(sel.hora)
+    return true
+  }, [step, sel])
+  const canConfirm = cli && srv
 
   const StepDot = ({ n, label }) => {
     const done = n < step, active = n === step
@@ -45,8 +50,8 @@ function Agendamento({ setPage }) {
           📱 Lembrete WhatsApp será enviado para {cli?.wpp}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => { setStep(1); setDone(false); setSel({ cli: null, srv: null, data: "2025-05-15", hora: "14:00" }) }} style={css.btn("ghost")}>+ Novo</button>
-          <button onClick={() => setPage("agenda")} style={{ ...css.btn(), flex: 1 }}>Ver agenda →</button>
+          <button onClick={() => { setStep(1); setDone(false); setSel({ cli: null, srv: null, data: TODAY, hora: "14:00" }) }} style={css.btn("ghost")}>+ Novo</button>
+          <button onClick={() => navigate("/agenda")} style={{ ...css.btn(), flex: 1 }}>Ver agenda →</button>
         </div>
       </div>
     </div>
@@ -55,7 +60,7 @@ function Agendamento({ setPage }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "0 20px", height: 52, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        <button onClick={() => setPage("agenda")} style={{ background: "none", border: "none", cursor: "pointer", color: C.primary, fontSize: 13, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+        <button onClick={() => navigate("/agenda")} style={{ background: "none", border: "none", cursor: "pointer", color: C.primary, fontSize: 13, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
           <Ico name="arrow" size={14} /> Agenda
         </button>
         <span style={{ color: C.textLight }}>/</span>
@@ -82,10 +87,15 @@ function Agendamento({ setPage }) {
                   {sel.cli === c.id && <Ico name="check" size={16} color={C.primary} />}
                 </div>
               ))}
-              <div onClick={() => setPage("nova-cliente")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, border: `1px dashed ${C.border}`, cursor: "pointer", color: C.primary, fontSize: 13, fontWeight: 600 }}>
+              <div onClick={() => navigate("/nova-cliente")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, border: `1px dashed ${C.border}`, cursor: "pointer", color: C.primary, fontSize: 13, fontWeight: 600 }}>
                 <Ico name="plus" size={14} color={C.primary} /> Cadastrar nova cliente
               </div>
             </div>
+            {!sel.cli && (
+              <div style={{ marginTop: 14, color: C.red, fontSize: 12, fontWeight: 600 }}>
+                Selecione uma cliente antes de continuar.
+              </div>
+            )}
           </div>
         )}
 
@@ -108,6 +118,11 @@ function Agendamento({ setPage }) {
                 </div>
               ))}
             </div>
+            {!sel.srv && (
+              <div style={{ marginTop: 14, color: C.red, fontSize: 12, fontWeight: 600 }}>
+                Selecione um serviço antes de continuar.
+              </div>
+            )}
           </div>
         )}
 
@@ -127,6 +142,11 @@ function Agendamento({ setPage }) {
                 )
               })}
             </div>
+            {(!sel.data || !sel.hora || HORARIOS_BUSY.includes(sel.hora)) && (
+              <div style={{ marginTop: 14, color: C.red, fontSize: 12, fontWeight: 600 }}>
+                Escolha uma data e um horário disponível para continuar.
+              </div>
+            )}
           </div>
         )}
 
@@ -151,9 +171,13 @@ function Agendamento({ setPage }) {
       <div style={{ display: "flex", gap: 8, padding: "14px 20px", borderTop: `1px solid ${C.border}`, background: "#fff" }}>
         {step > 1 && <button onClick={() => setStep(s => s - 1)} style={css.btn("ghost")}>← Voltar</button>}
         <button onClick={() => {
-          if (step < 4) { setStep(s => s + 1); return }
-          if (cli && srv) { addAgendamento({ clienteId: sel.cli, servicoId: sel.srv, data: sel.data, hora: sel.hora, valor: srv.preco }); setDone(true) }
-        }} style={{ ...css.btn(), flex: 2 }}>
+          if (step < 4) {
+            if (!stepValid) return
+            setStep(s => s + 1)
+            return
+          }
+          if (canConfirm) { addAgendamento({ clienteId: sel.cli, servicoId: sel.srv, data: sel.data, hora: sel.hora, valor: srv.preco }); setDone(true) }
+        }} style={{ ...css.btn(), flex: 2, opacity: step < 4 && !stepValid ? 0.6 : 1, cursor: step < 4 && !stepValid ? "not-allowed" : "pointer" }} disabled={step < 4 && !stepValid}>
           {step < 4 ? "Próximo →" : "✓ Confirmar agendamento"}
         </button>
       </div>
